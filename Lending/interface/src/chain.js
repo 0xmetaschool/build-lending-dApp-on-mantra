@@ -44,6 +44,6 @@ export const mantraChainConfig = {
   features: ["cosmwasm"],
 };
   
-export const CONTRACT_ADDRESS = "mantra193zk3dez6ftdvjn3k3pgrxzsurcaqg6wxqefwdkxk8rjlgg4mnyqd6g84u";
+export const CONTRACT_ADDRESS = "mantra1g44fw382lq0c97n5neusus6upmd0r9qwjfstt6yh8kkzj4mgx4qs76k666";
 export const USD_TOKEN_ADDRESS = "mantra1e0z5gq09k5874whkdrc4yms5aw0rz5x6gdqvzm3xy009zj320y5quq6u44";
 export const OM_TOKEN_ADDRESS = "mantra19uswnfwyvf6j5l8yet487kpaep80kgmqpwc0y6jtflqtqxt08hms57eq9m";
