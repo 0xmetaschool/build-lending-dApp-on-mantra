@@ -6,43 +6,70 @@ import { OM_TOKEN_ADDRESS } from '../chain';
 
 export default function BorrowRepay() {
   const { data: account } = useAccount();
-  const { borrow, repay, loading, checkBalance } = useLendingContract();
+  const { borrow, repay, loading, getTokenBalance, getUserInfo } = useLendingContract();
   const toast = useToast();
 
-  const [amount, setAmount] = useState(0);
-  const [omBalance, setOmBalance] = useState(0);
+  const [amount, setAmount] = useState('');
+  const [omBalance, setOmBalance] = useState('0');
+  const [userInfo, setUserInfo] = useState(null);
 
-  const checkOmBalance = useCallback(async () => {
+  const refreshBalances = useCallback(async () => {
     if (!account) return;
-    const balance = await checkBalance(OM_TOKEN_ADDRESS);
-    setOmBalance(balance);
-  }, [account, checkBalance]);
+    try {
+      const [balance, info] = await Promise.all([
+        getTokenBalance(OM_TOKEN_ADDRESS),
+        getUserInfo()
+      ]);
+      setOmBalance(balance);
+      setUserInfo(info);
+    } catch (error) {
+      console.error("Error fetching balances:", error);
+    }
+  }, [account, getTokenBalance, getUserInfo]);
 
   useEffect(() => {
-    checkOmBalance();
-  }, [checkOmBalance]);
+    refreshBalances();
+  }, [refreshBalances]);
 
   const handleBorrow = useCallback(async () => {
+    if (!amount || amount <= 0) {
+      showToast("Please enter a valid amount", "error");
+      return;
+    }
+
     try {
       await borrow(amount);
       showToast("Borrowed successfully!", "success");
-      checkOmBalance();
+      await refreshBalances();
+      setAmount('');
     } catch (error) {
       console.error("Borrow failed:", error);
-      showToast("Error borrowing. Please try again.", "error");
+      showToast(
+        error.message || "Error borrowing. Please try again.",
+        "error"
+      );
     }
-  }, [borrow, amount, checkOmBalance]);
+  }, [borrow, amount, refreshBalances]);
 
   const handleRepay = useCallback(async () => {
+    if (!amount || amount <= 0) {
+      showToast("Please enter a valid amount", "error");
+      return;
+    }
+
     try {
       await repay(amount);
       showToast("Repaid successfully!", "success");
-      checkOmBalance();
+      await refreshBalances();
+      setAmount('');
     } catch (error) {
       console.error("Repay failed:", error);
-      showToast("Error repaying. Please try again.", "error");
+      showToast(
+        error.message || "Error repaying. Please try again.",
+        "error"
+      );
     }
-  }, [repay, amount, checkOmBalance]);
+  }, [repay, amount, refreshBalances]);
 
   const showToast = (message, status) => {
     toast({
@@ -54,10 +81,20 @@ export default function BorrowRepay() {
     });
   };
 
+  // Convert from smallest unit to display unit
+  const displayBalance = (balance) => {
+    return (BigInt(balance) / BigInt(1000000)).toString();
+  };
+
   return (
     <Box>
       <Heading as="h2" size="xl" mb={8}>Borrow/Repay OM</Heading>
-      <Text fontSize="xl" mb={4}>Balance: {omBalance} OM</Text>
+      <Text fontSize="xl" mb={4}>Balance: {displayBalance(omBalance)} OM</Text>
+      {userInfo && (
+        <Text fontSize="xl" mb={4}>
+          Borrowed Amount: {displayBalance(userInfo.borrowed_amount)} OM
+        </Text>
+      )}
       <Input
         type="number"
         value={amount}

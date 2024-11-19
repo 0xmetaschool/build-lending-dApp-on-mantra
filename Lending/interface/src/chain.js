@@ -1,54 +1,49 @@
 export const mantraChainConfig = {
-  "chainId": "mantra-hongbai-1",
-  "chainName": "MANTRA Hongbai Testnet",
-  "chainSymbolImageUrl": "https://raw.githubusercontent.com/chainapsis/keplr-chain-registry/main/images/mantra-hongbai/chain.png",
-  "rpc": "https://rpc.hongbai.mantrachain.io",
-  "rest": "https://api.hongbai.mantrachain.io",
-  "nodeProvider": {
-    "name": "MANTRA Chain",
-    "email": "contact@mantrachain.io",
-    "website":"https://www.mantrachain.io"
+  chainId: "mantra-dukong-1",
+  chainName: "MANTRA Dukong Testnet",
+  rpc: "https://rpc.dukong.mantrachain.io",
+  rest: "https://api.dukong.mantrachain.io",
+  bip44: {
+    coinType: 118,
   },
-  "bip44": {
-    "coinType": 118
+  bech32Config: {
+    bech32PrefixAccAddr: "mantra",
+    bech32PrefixAccPub: "mantrapub",
+    bech32PrefixValAddr: "mantravaloper",
+    bech32PrefixValPub: "mantravaloperpub",
+    bech32PrefixConsAddr: "mantravalcons",
+    bech32PrefixConsPub: "mantravalconspub",
   },
-  "bech32Config": {
-    "bech32PrefixAccAddr": "mantra",
-    "bech32PrefixAccPub": "mantrapub",
-    "bech32PrefixValAddr": "mantravaloper",
-    "bech32PrefixValPub": "mantravaloperpub",
-    "bech32PrefixConsAddr": "mantravalcons",
-    "bech32PrefixConsPub": "mantravalconspub"
-  },
-  "currencies": [
+  currencies: [
     {
-      "coinDenom": "OM",
-      "coinMinimalDenom": "uom",
-      "coinDecimals": 6
-    }
+      coinDenom: "OM",
+      coinMinimalDenom: "uom",
+      coinDecimals: 6,
+      coinGeckoId: "mantra-chain",
+    },
   ],
-  "feeCurrencies": [
+  feeCurrencies: [
     {
-      "coinDenom": "OM",
-      "coinMinimalDenom": "uom",
-      "coinDecimals": 6,
-      "gasPriceStep": {
-        "low": 0.01,
-        "average": 0.025,
-        "high": 0.03
-      }
-    }
+      coinDenom: "OM",
+      coinMinimalDenom: "uom",
+      coinDecimals: 6,
+      coinGeckoId: "mantra-chain",
+      gasPriceStep: {
+        low: 0.01,
+        average: 0.025,
+        high: 0.03,
+      },
+    },
   ],
-  "stakeCurrency": {
-    "coinDenom": "OM",
-    "coinMinimalDenom": "uom",
-    "coinDecimals": 6
+  stakeCurrency: {
+    coinDenom: "OM",
+    coinMinimalDenom: "uom",
+    coinDecimals: 6,
+    coinGeckoId: "mantra-chain",
   },
-  "features": [
-    "cosmwasm"  
-  ]
+  features: ["cosmwasm"],
 };
   
-export const CONTRACT_ADDRESS = "mantra13q453k7ug2ma3wam9f6qexccqav3grpw29gc9v4wqxlqa8ns5vvscelpag";
-export const USD_TOKEN_ADDRESS = "mantra1nfwgkq7hkpgdkcpy0phy7h25j5q6hhcewh77fzekjtrmyp34txrqdkxdah";
-export const OM_TOKEN_ADDRESS = "mantra1fha3z7tj26ynusrjg8zc2xm2jnuvq43k0gs66pc0s0ndacje3rnsurdc5z";
+export const CONTRACT_ADDRESS = "mantra193zk3dez6ftdvjn3k3pgrxzsurcaqg6wxqefwdkxk8rjlgg4mnyqd6g84u";
+export const USD_TOKEN_ADDRESS = "mantra1e0z5gq09k5874whkdrc4yms5aw0rz5x6gdqvzm3xy009zj320y5quq6u44";
+export const OM_TOKEN_ADDRESS = "mantra19uswnfwyvf6j5l8yet487kpaep80kgmqpwc0y6jtflqtqxt08hms57eq9m";

@@ -23,7 +23,7 @@ export default function App() {
       }
     } else {
       try {
-        await connect({ chainId: "mantra-hongbai-1" });
+        await connect({ chainId: "mantra-dukong-1" });
       } catch (error) {
         console.error("Failed to connect:", error);
         showToast("Failed to connect. Please make sure Keplr is set up correctly.", "error");
