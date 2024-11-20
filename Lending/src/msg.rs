@@ -17,6 +17,7 @@ pub enum ExecuteMsg {
     Receive(Cw20ReceiveMsg),
     Unstake { amount: Uint128 },
     Borrow { amount: Uint128 },
+    UpdateInterest { user: String },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -32,4 +33,12 @@ pub enum QueryMsg {
     GetConfig {},
     GetUserInfo { address: Addr },
     GetPoolInfo {},
+    GetTotalOwed { address: Addr },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct TotalOwedResponse {
+    pub borrowed_amount: Uint128,
+    pub interest_amount: Uint128,
+    pub total_owed: Uint128,
 }

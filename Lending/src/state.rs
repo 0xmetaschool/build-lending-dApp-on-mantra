@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw_storage_plus::{Item, Map};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -16,13 +16,15 @@ pub struct Config {
 pub struct UserInfo {
     pub staked_amount: Uint128,
     pub borrowed_amount: Uint128,
-    pub last_interaction: u64,
+    pub interest_amount: Uint128,
+    pub last_interest_update: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct PoolInfo {
     pub total_staked: Uint128,
     pub total_borrowed: Uint128,
+    pub total_interest: Uint128,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
