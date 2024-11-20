@@ -24,23 +24,36 @@ import {
   TabPanel,
   Alert,
   AlertIcon,
-  Tooltip
+  Tooltip,
+  InputGroup,
+  InputRightAddon
 } from "@chakra-ui/react";
-import { InfoIcon, WarningIcon } from "@chakra-ui/icons";
+import { InfoIcon } from "@chakra-ui/icons";
 import { useAccount } from "graz";
 import { useLendingContract } from '../hooks/useLendingContract';
 import { OM_TOKEN_ADDRESS } from '../chain';
 
 export default function BorrowRepay() {
   const { data: account } = useAccount();
-  const { borrow, repay, loading, getTokenBalance, getUserInfo, getPoolInfo } = useLendingContract();
+  const { 
+    borrow, 
+    repay, 
+    loading, 
+    getTokenBalance, 
+    getUserInfo, 
+    getPoolInfo,
+    calculateTotalRepayment,
+    calculateInterest
+  } = useLendingContract();
+  
   const toast = useToast();
-
-  const [amount, setAmount] = useState('');
+  const [principalAmount, setPrincipalAmount] = useState('');
+  const [totalRepayAmount, setTotalRepayAmount] = useState('0');
   const [omBalance, setOmBalance] = useState('0');
   const [userInfo, setUserInfo] = useState(null);
   const [poolInfo, setPoolInfo] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [interestAmount, setInterestAmount] = useState('0');
 
   const refreshData = useCallback(async () => {
     if (!account?.bech32Address) return;
@@ -61,17 +74,22 @@ export default function BorrowRepay() {
       setOmBalance(balance || '0');
       setUserInfo(info || null);
       setPoolInfo(pool || null);
+
+      // Calculate interest for borrowed amount
+      if (info && info.borrowed_amount !== '0') {
+        const interest = calculateInterest(info.borrowed_amount);
+        setInterestAmount(interest.toString());
+      }
     } catch (error) {
       console.error("Error refreshing data:", error);
       showToast("Error refreshing data", "error");
     } finally {
       setIsProcessing(false);
     }
-  }, [account?.bech32Address, getTokenBalance, getUserInfo, getPoolInfo]);
+  }, [account?.bech32Address, getTokenBalance, getUserInfo, getPoolInfo, calculateInterest]);
 
   useEffect(() => {
     refreshData();
-    // Set up polling for updates
     const interval = setInterval(refreshData, 10000);
     return () => clearInterval(interval);
   }, [refreshData]);
@@ -83,15 +101,32 @@ export default function BorrowRepay() {
     return (stakedAmount * collateralRatio / 100n).toString();
   }, [userInfo, poolInfo]);
 
+  const handlePrincipalAmountChange = useCallback((e) => {
+    const principal = e.target.value;
+    setPrincipalAmount(principal);
+    
+    if (principal && Number(principal) > 0) {
+      const smallestUnitPrincipal = (Number(principal) * 1000000).toString();
+      const total = calculateTotalRepayment(smallestUnitPrincipal);
+      setTotalRepayAmount((Number(total) / 1000000).toFixed(6));
+      
+      const interest = calculateInterest(smallestUnitPrincipal);
+      setInterestAmount(interest.toString());
+    } else {
+      setTotalRepayAmount('0');
+      setInterestAmount('0');
+    }
+  }, [calculateTotalRepayment, calculateInterest]);
+
   const handleBorrow = useCallback(async () => {
-    if (!amount || Number(amount) <= 0) {
+    if (!principalAmount || Number(principalAmount) <= 0) {
       showToast("Please enter a valid amount", "error");
       return;
     }
 
     setIsProcessing(true);
     try {
-      const amountInSmallestUnit = (Number(amount) * 1000000).toString();
+      const amountInSmallestUnit = (Number(principalAmount) * 1000000).toString();
       const maxBorrow = calculateMaxBorrow();
 
       if (BigInt(amountInSmallestUnit) > BigInt(maxBorrow)) {
@@ -102,49 +137,45 @@ export default function BorrowRepay() {
       await borrow(amountInSmallestUnit);
       showToast("Borrowed successfully!", "success");
       
-      setAmount('');
+      setPrincipalAmount('');
+      setTotalRepayAmount('0');
       await refreshData();
     } catch (error) {
       console.error("Borrow failed:", error);
-      showToast(
-        error.message || "Error borrowing. Please try again.",
-        "error"
-      );
+      showToast(error.message || "Error borrowing. Please try again.", "error");
     } finally {
       setIsProcessing(false);
     }
-  }, [borrow, amount, calculateMaxBorrow, refreshData]);
+  }, [borrow, principalAmount, calculateMaxBorrow, refreshData]);
 
   const handleRepay = useCallback(async () => {
-    if (!amount || Number(amount) <= 0) {
+    if (!principalAmount || Number(principalAmount) <= 0) {
       showToast("Please enter a valid amount", "error");
       return;
     }
 
     setIsProcessing(true);
     try {
-      const amountInSmallestUnit = (Number(amount) * 1000000).toString();
+      const totalAmountInSmallestUnit = (Number(totalRepayAmount) * 1000000).toString();
       
-      if (BigInt(amountInSmallestUnit) > BigInt(omBalance)) {
+      if (BigInt(totalAmountInSmallestUnit) > BigInt(omBalance)) {
         throw new Error("Insufficient OM token balance");
       }
 
       showToast("Processing repayment...", "info");
-      await repay(amountInSmallestUnit);
+      await repay(totalAmountInSmallestUnit);
       showToast("Repaid successfully!", "success");
       
-      setAmount('');
+      setPrincipalAmount('');
+      setTotalRepayAmount('0');
       await refreshData();
     } catch (error) {
       console.error("Repay failed:", error);
-      showToast(
-        error.message || "Error repaying. Please try again.",
-        "error"
-      );
+      showToast(error.message || "Error repaying. Please try again.", "error");
     } finally {
       setIsProcessing(false);
     }
-  }, [repay, amount, omBalance, refreshData]);
+  }, [repay, principalAmount, totalRepayAmount, omBalance, refreshData]);
 
   const showToast = (message, status) => {
     toast({
@@ -180,7 +211,6 @@ export default function BorrowRepay() {
         <Heading as="h2" size="xl">Borrow/Repay OM</Heading>
 
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8}>
-          {/* User Stats */}
           <Card>
             <CardBody>
               <VStack spacing={4} align="stretch">
@@ -197,6 +227,22 @@ export default function BorrowRepay() {
                     </StatNumber>
                   </Stat>
                 </StatGroup>
+                {userInfo && BigInt(userInfo.borrowed_amount) > 0n && (
+                  <StatGroup>
+                    <Stat>
+                      <StatLabel>Interest (10%)</StatLabel>
+                      <StatNumber>
+                        {displayBalance(interestAmount)} OM
+                      </StatNumber>
+                    </Stat>
+                    <Stat>
+                      <StatLabel>Total Outstanding</StatLabel>
+                      <StatNumber>
+                        {displayBalance((BigInt(userInfo.borrowed_amount) + BigInt(interestAmount)).toString())} OM
+                      </StatNumber>
+                    </Stat>
+                  </StatGroup>
+                )}
                 <Box>
                   <Text mb={2}>Position Health</Text>
                   <Progress 
@@ -209,7 +255,6 @@ export default function BorrowRepay() {
             </CardBody>
           </Card>
 
-          {/* Borrowing Capacity */}
           <Card>
             <CardBody>
               <VStack spacing={4} align="stretch">
@@ -237,7 +282,6 @@ export default function BorrowRepay() {
 
         <Divider />
 
-        {/* Borrow/Repay Interface */}
         <Card>
           <CardBody>
             <Tabs isFitted variant="enclosed">
@@ -257,8 +301,8 @@ export default function BorrowRepay() {
                     <HStack spacing={4} width="100%">
                       <Input
                         type="number"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
+                        value={principalAmount}
+                        onChange={(e) => setPrincipalAmount(e.target.value)}
                         placeholder="Enter amount to borrow"
                         min="0"
                         step="0.000001"
@@ -273,8 +317,8 @@ export default function BorrowRepay() {
                         size="lg"
                         isDisabled={
                           !account || 
-                          !amount || 
-                          Number(amount) <= 0 || 
+                          !principalAmount || 
+                          Number(principalAmount) <= 0 || 
                           isProcessing || 
                           (userInfo && BigInt(userInfo.staked_amount) === 0n)
                         }
@@ -286,40 +330,82 @@ export default function BorrowRepay() {
                 </TabPanel>
                 <TabPanel>
                   <VStack spacing={6}>
-                    {userInfo && BigInt(userInfo.borrowed_amount) === 0n && (
+                    {userInfo && BigInt(userInfo.borrowed_amount) === 0n ? (
                       <Alert status="info">
                         <AlertIcon />
                         You don't have any outstanding loans
                       </Alert>
+                    ) : (
+                      <VStack spacing={4} width="100%">
+                        <Alert status="info">
+                          <AlertIcon />
+                          <VStack align="start" spacing={1}>
+                            <Text>Enter the principal amount you want to repay.</Text>
+                            <Text>A 10% interest will be added to the total repayment amount.</Text>
+                          </VStack>
+                        </Alert>
+                        
+                        <StatGroup width="100%">
+                          <Stat>
+                            <StatLabel>Principal Amount</StatLabel>
+                            <StatNumber>
+                              <InputGroup>
+                                <Input
+                                  type="number"
+                                  value={principalAmount}
+                                  onChange={handlePrincipalAmountChange}
+                                  placeholder="0.000000"
+                                  min="0"
+                                  step="0.000001"
+                                  isDisabled={isProcessing}
+                                />
+                                <InputRightAddon children="OM" />
+                              </InputGroup>
+                            </StatNumber>
+                          </Stat>
+                        </StatGroup>
+
+                        {principalAmount && Number(principalAmount) > 0 && (
+                          <VStack spacing={2} width="100%" align="start">
+                            <Text>Repayment Breakdown:</Text>
+                            <StatGroup width="100%">
+                              <Stat>
+                                <StatLabel>Principal</StatLabel>
+                                <StatNumber>{principalAmount} OM</StatNumber>
+                              </Stat>
+                              <Stat>
+                                <StatLabel>Interest (10%)</StatLabel>
+                                <StatNumber>
+                                  {displayBalance(interestAmount)} OM
+                                </StatNumber>
+                              </Stat>
+                              <Stat>
+                                <StatLabel>Total to Pay</StatLabel>
+                                <StatNumber>{totalRepayAmount} OM</StatNumber>
+                              </Stat>
+                            </StatGroup>
+                          </VStack>
+                        )}
+
+                        <Button
+                          width="100%"
+                          onClick={handleRepay}
+                          isLoading={isProcessing}
+                          loadingText="Processing"
+                          colorScheme="red"
+                          size="lg"
+                          isDisabled={
+                            !account || 
+                            !principalAmount || 
+                            Number(principalAmount) <= 0 || 
+                            isProcessing ||
+                            (userInfo && BigInt(userInfo.borrowed_amount) === 0n)
+                          }
+                        >
+                          Repay {totalRepayAmount} OM
+                        </Button>
+                      </VStack>
                     )}
-                    <HStack spacing={4} width="100%">
-                      <Input
-                        type="number"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        placeholder="Enter amount to repay"
-                        min="0"
-                        step="0.000001"
-                        isDisabled={isProcessing}
-                      />
-                      <Button
-                        w="200px"
-                        onClick={handleRepay}
-                        isLoading={isProcessing}
-                        loadingText="Processing"
-                        colorScheme="red"
-                        size="lg"
-                        isDisabled={
-                          !account || 
-                          !amount || 
-                          Number(amount) <= 0 || 
-                          isProcessing ||
-                          (userInfo && BigInt(userInfo.borrowed_amount) === 0n)
-                        }
-                      >
-                        Repay
-                      </Button>
-                    </HStack>
                   </VStack>
                 </TabPanel>
               </TabPanels>
