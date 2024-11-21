@@ -1,8 +1,0 @@
-Deployment Information
-=====================
-Chain ID: mantra-dukong-1
-Code ID: 204
-Contract Address: mantra1h5gyked5kd8s8nxc5u8svhmxuyyc435g3q7mn02pqma6vfpu5qjsj2p24v
-USD Token: mantra1phn53hmfz9c9q30jkhw4crpswyp7qutwcpygu3pnf3tj7xcysz4s7t7ujl
-OM Token: mantra1nkjg35rcxxc5c2fl0kys2xq29hnapt5xe8umu9jk9eelx0wg3hws0u3e9q
-Deployment Time: Wed Nov 20 15:54:29 UTC 2024
