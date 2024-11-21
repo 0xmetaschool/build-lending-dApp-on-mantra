@@ -405,7 +405,7 @@ export default function BorrowRepay() {
                               <InputRightAddon children="OM" />
                             </InputGroup>
 
-                            /* Full Amount Button */}
+                            /* Full Amount Button */
                                           <Button
                                             size="sm"
                                             width="full"
