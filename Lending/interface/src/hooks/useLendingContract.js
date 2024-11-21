@@ -97,24 +97,6 @@ export function useLendingContract() {
     }
   }, [account?.bech32Address, cosmWasmClient]);
 
-  const getRepaymentInfo = useCallback(async () => {
-    try {
-      if (!account?.bech32Address || !cosmWasmClient) return null;
-      
-      const result = await cosmWasmClient.queryContractSmart(CONTRACT_ADDRESS, {
-        get_repayment_info: {
-          address: account.bech32Address
-        }
-      });
-      
-      console.log('Repayment info result:', result);
-      return result;
-    } catch (error) {
-      console.error("Error getting repayment info:", error);
-      return null;
-    }
-  }, [account?.bech32Address, cosmWasmClient]);
-
   const approveToken = useCallback(async (tokenAddress, amount) => {
     if (!account?.bech32Address) throw new Error("No account connected");
     setLoading(true);
@@ -140,6 +122,30 @@ export function useLendingContract() {
       setLoading(false);
     }
   }, [account?.bech32Address, getSigningClient]);
+
+  const calculateInterest = useCallback((amount) => {
+    if (!amount || BigInt(amount) === 0n) return '0';
+    const principal = BigInt(amount);
+    return (principal * BigInt(1000)) / BigInt(10000); // 10% interest
+  }, []);
+
+  const calculatePartialRepayment = useCallback((principalAmount) => {
+    if (!principalAmount || Number(principalAmount) <= 0) return {
+      principal: '0',
+      interest: '0',
+      total: '0'
+    };
+
+    const principal = BigInt(principalAmount);
+    const interest = calculateInterest(principalAmount);
+    const total = principal + BigInt(interest);
+
+    return {
+      principal: principal.toString(),
+      interest: interest.toString(),
+      total: total.toString()
+    };
+  }, [calculateInterest]);
 
   const stake = useCallback(async (amount) => {
     if (!account) return;
@@ -202,7 +208,7 @@ export function useLendingContract() {
 
       console.log('Borrow result:', result);
       await new Promise(resolve => setTimeout(resolve, 1000));
-      await Promise.all([getPoolInfo(), getUserInfo(), getRepaymentInfo()]);
+      await Promise.all([getPoolInfo(), getUserInfo()]);
       
       return result;
     } catch (error) {
@@ -211,19 +217,24 @@ export function useLendingContract() {
     } finally {
       setLoading(false);
     }
-  }, [account, getSigningClient, getPoolInfo, getUserInfo, getRepaymentInfo]);
-   
-  const calculateInterest = useCallback((amount) => {
-    const principal = BigInt(amount);
-    return (principal * BigInt(1000)) / BigInt(10000); // 10% interest
-  }, []);
+  }, [account, getSigningClient, getPoolInfo, getUserInfo]);
 
- 
   const repay = useCallback(async (totalAmount) => {
     if (!account) return;
     setLoading(true);
     try {
       const signingClient = await getSigningClient();
+      const amountToRepay = BigInt(totalAmount);
+
+      // Get current user info to validate repayment
+      const userInfo = await getUserInfo();
+      if (!userInfo) throw new Error("Could not get user information");
+
+      const maxRepayment = calculatePartialRepayment(userInfo.borrowed_amount);
+      if (amountToRepay > BigInt(maxRepayment.total)) {
+        throw new Error("Repayment amount exceeds total debt including interest");
+      }
+
       const repayMsg = btoa(JSON.stringify({ repay: {} }));
       
       const result = await signingClient.execute(
@@ -232,7 +243,7 @@ export function useLendingContract() {
         {
           send: {
             contract: CONTRACT_ADDRESS,
-            amount: totalAmount.toString(),
+            amount: amountToRepay.toString(),
             msg: repayMsg
           }
         },
@@ -250,13 +261,8 @@ export function useLendingContract() {
     } finally {
       setLoading(false);
     }
-  }, [account, getSigningClient, getPoolInfo, getUserInfo]);
+  }, [account, getSigningClient, getPoolInfo, getUserInfo, calculatePartialRepayment]);
 
- const calculateTotalRepayment = useCallback((principalAmount) => {
-    if (!principalAmount) return '0';
-    const interest = calculateInterest(principalAmount);
-    return (BigInt(principalAmount) + interest).toString();
-  }, [calculateInterest]);
   return {
     stake,
     borrow,
@@ -266,8 +272,8 @@ export function useLendingContract() {
     getTokenAllowance,
     approveToken,
     getPoolInfo,
-    calculateTotalRepayment,
     calculateInterest,
+    calculatePartialRepayment,
     loading
   };
 }
